@@ -1,4 +1,7 @@
 import { Router } from "express";
+import { products } from "../db/schema";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
 
 const productsRoutes = Router();
 
@@ -18,10 +21,11 @@ const productsRoutes = Router();
  *       '500':
  *         description: Internal server error
  */
-productsRoutes.get("/list", (req, res) => {
+productsRoutes.get("/list", async (req, res) => {
   try {
+    const result = await db.select().from(products);
     return res.status(200).json({
-      data: {},
+      data: result,
     }) as any;
   } catch (err) {
     return res.status(500).json({
@@ -71,7 +75,8 @@ productsRoutes.get("/list", (req, res) => {
 
 productsRoutes.get("/list/:id", (req, res) => {
   try {
-    const id = req.params.id;
+    const id = parseInt(req.params.id);
+    const result = db.select().from(products).where(eq(products.id, id));
     return res.status(200).json({
       data: { id: id },
     }) as any;
