@@ -45,5 +45,5 @@ app.use("/v1/products", productsRoutes);
 const port = Number.parseInt(process.env.SERVER_PORT as string) || 4405;
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port~~${port}`);
 });

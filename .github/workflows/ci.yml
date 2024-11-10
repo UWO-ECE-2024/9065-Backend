@@ -22,4 +22,4 @@ jobs:
           cd /home/ec2-user/project/9065-Backend
           git pull origin deploy
           npm install
-          pm2 restart inspire_server
+          pm2 restart 9065-Backend
