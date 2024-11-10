@@ -1,0 +1,25 @@
+# .github/workflows/ci.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+      branches: [deploy]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: 部署到 EC2
+      uses: appleboy/ssh-action@v0.1.8
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user  # 或者您的部署用户
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        port: 22
+        script: |
+          cd /home/ec2-user/project/9065-Backend
+          git pull origin deploy
+          npm install
+          pm2 restart 9065-Backend
