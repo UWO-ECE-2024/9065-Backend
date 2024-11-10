@@ -44,3 +44,7 @@ pnpm run dev
 # you can use npm or yarn
 pnpm run build && pnpm run start
 ```
+
+## Database
+
+![Database Schema](public/ER.png)
