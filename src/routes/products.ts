@@ -76,7 +76,7 @@ productsRoutes.get("/list", async (req, res) => {
 productsRoutes.get("/list/:id", (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const result = db.select().from(products).where(eq(products.id, id));
+    const result = db.select().from(products).where(eq(products.productId, id));
     return res.status(200).json({
       data: { id: id },
     }) as any;
