@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { products } from "../db/schema";
+import { productAttributes, productReviews, products } from "../db/schema";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
 
@@ -9,15 +9,29 @@ const productsRoutes = Router();
  * @swagger
  * /products/list:
  *   get:
- *     summary: Get all products.
- *     description: Get all products from the database.
- *     parameters:
- *
+ *     summary: Retrieve a list of products.
+ *     description: Fetch a list of all products from the database.
+ *     tags:
+ *       - Product
  *     responses:
  *       '200':
  *         description: A successful response
- *       '404':
- *         description: Not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       price:
+ *                         type: number
  *       '500':
  *         description: Internal server error
  */
@@ -43,10 +57,12 @@ productsRoutes.get("/list", async (req, res) => {
 
 /**
  * @swagger
- * /products/list/{id}:
+ * /products/{id}:
  *   get:
  *     summary: Get a product by ID.
  *     description: Retrieve a single product from the database using its ID.
+ *     tags:
+ *       - Product
  *     parameters:
  *       - in: path
  *         name: id
@@ -73,15 +89,53 @@ productsRoutes.get("/list", async (req, res) => {
  *         description: Internal server error
  */
 
-productsRoutes.get("/list/:id", (req, res) => {
+productsRoutes.get("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const result = db.select().from(products).where(eq(products.productId, id));
-    return res.status(200).json({
-      data: { id: id },
-    }) as any;
-  } catch (err) {
-    return res.status(500).json({
+
+    // Fetch product details
+    const product = await db
+      .select()
+      .from(products)
+      .where(eq(products.productId, id))
+      .execute();
+
+    if (product.length === 0) {
+      return res.status(404).json({
+        error: {
+          issues: [
+            {
+              code: "not_found",
+              message: "Product not found",
+            },
+          ],
+        },
+      });
+    }
+
+    // Fetch product attributes
+    const attributes = await db
+      .select()
+      .from(productAttributes)
+      .where(eq(productAttributes.productId, id))
+      .execute();
+
+    // Fetch product reviews
+    const reviews = await db
+      .select()
+      .from(productReviews)
+      .where(eq(productReviews.productId, id))
+      .execute();
+
+    res.status(200).json({
+      data: {
+        product: product[0],
+        attributes: attributes,
+        reviews: reviews,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
       error: {
         issues: [
           {
@@ -93,5 +147,7 @@ productsRoutes.get("/list/:id", (req, res) => {
     });
   }
 });
+
+
 
 export default productsRoutes;
