@@ -100,6 +100,7 @@ categoryRoutes.get("/list", async (req, res) => {
  *         description: Internal server error
  */
 
+// @ts-ignore
 categoryRoutes.get("/:id/products", async (req, res) => {
   try {
     const categoryId = parseInt(req.params.id);

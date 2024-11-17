@@ -7,6 +7,7 @@ import swaggerUi from "swagger-ui-express";
 import productsRoutes from "./routes/products";
 import categoryRoutes from "./routes/categories";
 import cartRoutes from "./routes/carts";
+import stocksRoutes from "./routes/stocks";
 
 dotenv.config();
 
@@ -40,10 +41,12 @@ app.use(
     allowedHeaders: ["Content-Type"],
   })
 );
+app.use(express.json())
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use("/v1/products", productsRoutes);
 app.use("/v1/category", categoryRoutes);
+app.use("/v1/stocks",stocksRoutes);
 app.use('/v1/cart',cartRoutes);
 
 const port = Number.parseInt(process.env.SERVER_PORT as string) || 4405;

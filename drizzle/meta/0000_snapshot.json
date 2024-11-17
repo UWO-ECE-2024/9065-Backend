@@ -786,7 +786,8 @@
           "name": "sku",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "set"
         },
         "is_active": {
           "name": "is_active",
