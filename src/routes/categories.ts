@@ -6,49 +6,69 @@ import { generator } from "../libs/id_generator";
 
 const categoryRoutes = Router();
 
+
 /**
  * @swagger
  * /category/list:
  *   get:
- *     summary: Retrieve all categories.
- *     description: Fetch a list of all categories from the database.
+ *     summary: Retrieve a list of all categories.
+ *     description: Fetch all categories from the database.
  *     tags:
  *       - Category
  *     responses:
  *       '200':
- *         description: A successful response
+ *         description: A list of categories
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   categoryId:
- *                     type: string
- *                   name:
- *                     type: string
- *                   description:
- *                     type: string
- *                   parentCategoryId:
- *                     type: string
- *                   isActive:
- *                     type: boolean
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       categoryId:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       parentCategoryId:
+ *                         type: string
  *       '500':
  *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     issues:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           code:
+ *                             type: string
+ *                           message:
+ *                             type: string
  */
-
 categoryRoutes.get("/list", async (req, res) => {
   try {
     const allCategories = await db.select().from(categories).execute();
-    res.status(200).json(allCategories);
+    res.status(200).json({
+      data: allCategories,
+    });
   } catch (error) {
     res.status(500).json({
       error: {
         issues: [
           {
             code: "internal_server_error",
-            message: (error as Error).message??"Internal server error",
+            message: (error as Error).message ?? "Internal server error",
           },
         ],
       },
@@ -153,14 +173,13 @@ categoryRoutes.get("/:name/products", async (req, res) => {
         issues: [
           {
             code: "internal_server_error",
-            message: (error as Error).message ??"Internal server error",
+            message: (error as Error).message ?? "Internal server error",
           },
         ],
       },
     });
   }
 });
-
 
 /**
  * @swagger
@@ -646,8 +665,5 @@ categoryRoutes.delete("/", async (req, res) => {
     });
   }
 });
-
-
-
 
 export default categoryRoutes;

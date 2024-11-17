@@ -34,11 +34,11 @@ const swaggerOptions = {
 const app: Express = express();
 const swaggerDocs = swaggerjsdoc(swaggerOptions);
 app.use(morgan("dev"));
-app.use(bodyParser.urlencoded({extended:false}));
-app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 app.use(
   cors({
-    origin: "*", // change it in production base on your request origin domain
+    origin: ["http://localhost:3000"], // change it in production base on your request origin domain
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
