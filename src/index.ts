@@ -37,7 +37,7 @@ app.use(morgan("dev"));
 app.use(
   cors({
     origin: "*", // change it in production base on your request origin domain
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
     allowedHeaders: ["Content-Type"],
   })
 );

@@ -4,7 +4,7 @@ import {  products,categories } from "../db/schema";
 import {eq, Placeholder} from "drizzle-orm";
 import {generator} from "../libs/id_generator";
 import {undefined} from "zod";
-import {bigint} from "drizzle-orm/pg-core";
+import {bigint, timestamp} from "drizzle-orm/pg-core";
 
 // product_id     | bigint                   |           | not null |
 // category_id    | bigint                   |           | not null |
@@ -28,7 +28,7 @@ const stocksRoutes = Router();
 
 
 stocksRoutes.post("/addCategory", async (req, res) => {
-    const {category_id,name} = req.body;
+    const {category_id,name,description,parent_category_id} = req.body;
     if (!category_id || !name) {
         return res.status(404).json({"error":"no category id found or no name"});
     }
@@ -36,12 +36,14 @@ stocksRoutes.post("/addCategory", async (req, res) => {
         const category =  {
             categoryId:category_id,
             name: name,
+            description: description,
+            parentCategoryId:parent_category_id
         }
         const newCategory = await db.insert(categories).values(category).execute();
 
         res.status(201).send({
             message: "category added successfully",
-            productId: category.categoryId
+            categoryId: category.categoryId
         });
     } catch (error) {
         console.error("Error inserting new category:", error);
@@ -75,6 +77,53 @@ stocksRoutes.post("/addProduct",async (req, res) => {
     } catch (error) {
         console.error("Error inserting new product:", error);
         res.status(500).send({ error: "Internal server error" });
+    }
+})
+// @ts-ignore
+stocksRoutes.patch("/increaseStockById/:id", async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const currentProduct = await db.select().from(products).where(eq(products.productId, id));
+        if (currentProduct.length === 0) {
+            return res.status(404).send({ message: "Product not found" });
+        }
+        const newStockQuantity = currentProduct[0].stockQuantity + 1;
+        const updated = await db.update(products)
+            .set({stockQuantity: newStockQuantity})
+            .where(eq(products.productId, id));
+        // @ts-ignore
+        if (updated === 0) {
+            return res.status(404).send({ message: "Product not found" });
+        }
+        res.send({ message: "Stock quantity incremented successfully" });
+    }
+    catch (error) {
+        console.error("Error inserting stock:", error);
+    }
+})
+
+stocksRoutes.patch("/decreaseStockById/:id", async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const currentProduct = await db.select().from(products).where(eq(products.productId, id));
+        if (currentProduct.length === 0) {
+            return res.status(404).send({ message: "Product not found" });
+        }
+        const newStockQuantity = currentProduct[0].stockQuantity - 1;
+        if (newStockQuantity < 0) {
+            return res.status(200).send({ message: "already zero" });
+        }
+        const updated = await db.update(products)
+            .set({stockQuantity: newStockQuantity})
+            .where(eq(products.productId, id));
+        // @ts-ignore
+        if (updated === 0) {
+            return res.status(404).send({ message: "Product not found" });
+        }
+        res.send({ message: "Stock quantity decremented successfully" });
+    }
+    catch (error) {
+        console.error("Error inserting stock:", error);
     }
 })
 
