@@ -1,6 +1,6 @@
 {
-  "id": "f6d6e334-9b06-4e1b-85f3-41be023a4f79",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "a9d136c7-eaca-43a0-b2ad-a376c4f7816d",
+  "prevId": "f6d6e334-9b06-4e1b-85f3-41be023a4f79",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -782,12 +782,6 @@
           "notNull": true,
           "default": 0
         },
-        "sku": {
-          "name": "sku",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
         "is_active": {
           "name": "is_active",
           "type": "boolean",
@@ -827,15 +821,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "products_sku_unique": {
-          "name": "products_sku_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sku"
-          ]
-        }
-      }
+      "uniqueConstraints": {}
     },
     "public.user_addresses": {
       "name": "user_addresses",
