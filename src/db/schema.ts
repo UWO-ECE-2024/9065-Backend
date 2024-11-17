@@ -89,7 +89,7 @@ export const products = pgTable("products", {
   description: text("description"),
   basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
   stockQuantity: integer("stock_quantity").notNull().default(0),
-  sku: varchar("sku", { length: 50 }).notNull().unique(),
+  // sku: varchar("sku", { length: 50 }).notNull().unique(),
   isActive: boolean("is_active").default(true),
   ...createTimestamps,
 });
@@ -218,7 +218,6 @@ export const orderStatusHistory = pgTable("order_status_history", {
 export const indexes = sql`
   CREATE INDEX idx_user_email ON users(email);
   CREATE INDEX idx_product_category ON products(category_id);
-  CREATE INDEX idx_product_sku ON products(sku);
   CREATE INDEX idx_cart_user ON carts(user_id);
   CREATE INDEX idx_cart_session ON carts(session_id);
   CREATE INDEX idx_order_user ON orders(user_id);
@@ -226,3 +225,5 @@ export const indexes = sql`
   CREATE INDEX idx_product_active ON products(is_active);
   CREATE INDEX idx_cart_active ON carts(is_active);
 `;
+
+// "remove" CREATE INDEX idx_product_sku ON products(sku);
