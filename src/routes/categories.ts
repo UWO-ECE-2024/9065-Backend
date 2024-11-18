@@ -554,7 +554,7 @@ categoryRoutes.put("/update", async (req, res) => {
 
 /**
  * @swagger
- * /category:
+ * /category/delete:
  *   delete:
  *     summary: Delete a category.
  *     description: Remove a category from the database using its unique identifier.
@@ -620,7 +620,7 @@ categoryRoutes.put("/update", async (req, res) => {
  *                           message:
  *                             type: string
  */
-categoryRoutes.delete("/", async (req, res) => {
+categoryRoutes.delete("/delete", async (req, res) => {
   try {
     const { id: categoryId } = req.body;
 
