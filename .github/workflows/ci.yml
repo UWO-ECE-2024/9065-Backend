@@ -20,6 +20,9 @@ jobs:
         port: 22
         script: |
           cd /home/ec2-user/project/9065-Backend
+          git stash
+          git checkout deploy
           git pull origin deploy
           npm install
+          pnpm run db:migrate
           pm2 restart 9065-Backend
