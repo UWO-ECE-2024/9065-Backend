@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { db } from "../db";
-import { cartItems, carts } from "../db/schema";
+import { cartItems, carts, users } from "../db/schema";
 import { generator } from "../libs/id_generator";
-import { eq, and} from "drizzle-orm";
-
+import { eq, and } from "drizzle-orm";
 
 const cartRoutes = Router();
 
@@ -25,18 +24,83 @@ const cartRoutes = Router();
  *               userId:
  *                 type: string
  *                 description: The ID of the user for whom the cart is being created.
+ *                 example: "12345"
  *     responses:
  *       '201':
  *         description: Cart created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   description: The newly created cart data
  *       '400':
  *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     issues:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           code:
+ *                             type: string
+ *                           message:
+ *                             type: string
+ *       '404':
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     issues:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           code:
+ *                             type: string
+ *                           message:
+ *                             type: string
  *       '500':
  *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     issues:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           code:
+ *                             type: string
+ *                           message:
+ *                             type: string
  */
 
 cartRoutes.post("/create", async (req, res) => {
   try {
     const { userId } = req.body;
+    console.log(userId);
 
     if (!userId) {
       return res.status(400).json({
@@ -51,8 +115,31 @@ cartRoutes.post("/create", async (req, res) => {
       });
     }
 
-    
-    const newCart = await db.insert(carts).values({cartId:Number(generator.nextId()), userId }).returning().execute();
+    // Check if the user exists
+    const userExists = await db
+      .select()
+      .from(users) // Assuming 'users' is the table name for users
+      .where(eq(users.userId, userId))
+      .execute();
+
+    if (userExists.length === 0) {
+      return res.status(404).json({
+        error: {
+          issues: [
+            {
+              code: "not_found",
+              message: "User not found",
+            },
+          ],
+        },
+      });
+    }
+
+    const newCart = await db
+      .insert(carts)
+      .values({ cartId: Number(generator.nextId()), userId })
+      .returning()
+      .execute();
 
     res.status(201).json({
       message: "Cart created successfully",
@@ -64,14 +151,13 @@ cartRoutes.post("/create", async (req, res) => {
         issues: [
           {
             code: "internal_server_error",
-            message: "Internal server error",
+            message: (error as Error).message ?? "Internal server error",
           },
         ],
       },
     });
   }
 });
-
 
 /**
  * @swagger
@@ -80,7 +166,7 @@ cartRoutes.post("/create", async (req, res) => {
  *     summary: Update items in a cart.
  *     description: Replace all items in a specified cart with a new set of items.
  *     tags:
- *       - Carts 
+ *       - Carts
  *     requestBody:
  *       required: true
  *       content:
@@ -115,6 +201,7 @@ cartRoutes.post("/create", async (req, res) => {
  *       '500':
  *         description: Internal server error
  */
+// @ts-ignore
 cartRoutes.put("/update-items", async (req, res) => {
   try {
     const { cartId, items } = req.body;
@@ -141,16 +228,21 @@ cartRoutes.put("/update-items", async (req, res) => {
       for (const item of items) {
         const { productId, quantity, unitPrice } = item;
         if (!productId || !quantity || !unitPrice) {
-          throw new Error("Each item must have productId, quantity, and unitPrice");
+          throw new Error(
+            "Each item must have productId, quantity, and unitPrice"
+          );
         }
 
-        await trx.insert(cartItems).values({
-          cartItemId: Number(generator.nextId()),
-          cartId,
-          productId,
-          quantity,
-          unitPrice,
-        }).execute();
+        await trx
+          .insert(cartItems)
+          .values({
+            cartItemId: Number(generator.nextId()),
+            cartId,
+            productId,
+            quantity,
+            unitPrice,
+          })
+          .execute();
       }
     });
 
@@ -163,14 +255,13 @@ cartRoutes.put("/update-items", async (req, res) => {
         issues: [
           {
             code: "internal_server_error",
-            message: error || "Internal server error",
+            message: (error as Error).message ?? "Internal server error",
           },
         ],
       },
     });
   }
 });
-
 
 /**
  * @swagger
@@ -242,7 +333,7 @@ cartRoutes.delete("/:id", async (req, res) => {
         issues: [
           {
             code: "internal_server_error",
-            message: error || "Internal server error",
+            message: (error as Error).message ??  "Internal server error",
           },
         ],
       },
@@ -331,21 +422,26 @@ cartRoutes.get("/user/:userId", async (req, res) => {
     // If no active cart exists, create a new one
     if (cart.length === 0) {
       const newCartId = Number(generator.nextId());
-      await db.insert(carts).values({
-        cartId: newCartId,
-        userId: userId,
-        isActive: true,
-      }).execute();
+      await db
+        .insert(carts)
+        .values({
+          cartId: newCartId,
+          userId: userId,
+          isActive: true,
+        })
+        .execute();
 
-      cart = [{
-	      cartId: newCartId,
-	      userId: userId,
-	      isActive: true,
-	      createdAt: null,
-	      updatedAt: null,
-	      sessionId: null,
-	      lastActivity: null
-      }];
+      cart = [
+        {
+          cartId: newCartId,
+          userId: userId,
+          isActive: true,
+          createdAt: null,
+          updatedAt: null,
+          sessionId: null,
+          lastActivity: null,
+        },
+      ];
     }
 
     // Fetch cart items for the user's active cart
@@ -367,7 +463,7 @@ cartRoutes.get("/user/:userId", async (req, res) => {
         issues: [
           {
             code: "internal_server_error",
-            message: error || "Internal server error",
+            message: (error as Error).message ??  "Internal server error",
           },
         ],
       },
@@ -375,7 +471,4 @@ cartRoutes.get("/user/:userId", async (req, res) => {
   }
 });
 
-
-
-
-export default cartRoutes
+export default cartRoutes;

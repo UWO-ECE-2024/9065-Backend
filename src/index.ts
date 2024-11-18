@@ -7,7 +7,9 @@ import swaggerUi from "swagger-ui-express";
 import productsRoutes from "./routes/products";
 import categoryRoutes from "./routes/categories";
 import cartRoutes from "./routes/carts";
+import stocksRoutes from "./routes/stocks";
 import bodyParser from "body-parser";
+import path from "path";
 
 dotenv.config();
 
@@ -36,17 +38,21 @@ const swaggerDocs = swaggerjsdoc(swaggerOptions);
 app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use('/upload', express.static(path.join(__dirname, 'upload')));
+
 app.use(
   cors({
-    origin: ["http://localhost:3000"], // change it in production base on your request origin domain
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: "*", // change it in production base on your request origin domain
+    methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
     allowedHeaders: ["Content-Type"],
   })
 );
+app.use(express.json())
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use("/v1/products", productsRoutes);
 app.use("/v1/category", categoryRoutes);
+app.use("/v1/stocks",stocksRoutes);
 app.use("/v1/cart", cartRoutes);
 
 const port = Number.parseInt(process.env.SERVER_PORT as string) || 4405;
