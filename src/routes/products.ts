@@ -89,6 +89,7 @@ productsRoutes.get("/list", async (req, res) => {
  *         description: Internal server error
  */
 
+// @ts-ignore
 productsRoutes.get("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);

@@ -123,6 +123,7 @@ categoryRoutes.get("/list", async (req, res) => {
  *       '500':
  *         description: Internal server error
  */
+
 categoryRoutes.get("/:name/products", async (req, res) => {
   try {
     const categoryName = req.params.name;

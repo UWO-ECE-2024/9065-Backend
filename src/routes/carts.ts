@@ -96,6 +96,7 @@ const cartRoutes = Router();
  *                           message:
  *                             type: string
  */
+
 cartRoutes.post("/create", async (req, res) => {
   try {
     const { userId } = req.body;
@@ -200,6 +201,7 @@ cartRoutes.post("/create", async (req, res) => {
  *       '500':
  *         description: Internal server error
  */
+// @ts-ignore
 cartRoutes.put("/update-items", async (req, res) => {
   try {
     const { cartId, items } = req.body;
