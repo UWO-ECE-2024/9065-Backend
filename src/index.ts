@@ -9,6 +9,7 @@ import categoryRoutes from "./routes/categories";
 import cartRoutes from "./routes/carts";
 import stocksRoutes from "./routes/stocks";
 import bodyParser from "body-parser";
+import path from "path";
 
 dotenv.config();
 
@@ -37,6 +38,8 @@ const swaggerDocs = swaggerjsdoc(swaggerOptions);
 app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use('/upload', express.static(path.join(__dirname, 'upload')));
+
 app.use(
   cors({
     origin: "*", // change it in production base on your request origin domain
