@@ -8,6 +8,7 @@ import productsRoutes from "./routes/products";
 import categoryRoutes from "./routes/categories";
 import cartRoutes from "./routes/carts";
 import stocksRoutes from "./routes/stocks";
+import authRoutes from "./routes/auth";
 import bodyParser from "body-parser";
 import path from "path";
 
@@ -29,6 +30,15 @@ const swaggerOptions = {
         url: `http://localhost:${process.env.SERVER_PORT}/v1`,
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
   },
   apis: ["./src/routes/*.ts", "./src/routes/*.js"],
 };
@@ -43,16 +53,17 @@ app.use('/upload', express.static(path.join(__dirname, 'upload')));
 app.use(
   cors({
     origin: "*", // change it in production base on your request origin domain
-    methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type"],
   })
 );
 app.use(express.json())
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use("/v1/auth", authRoutes);
 app.use("/v1/products", productsRoutes);
 app.use("/v1/category", categoryRoutes);
-app.use("/v1/stocks",stocksRoutes);
+app.use("/v1/stocks", stocksRoutes);
 app.use("/v1/cart", cartRoutes);
 
 const port = Number.parseInt(process.env.SERVER_PORT as string) || 4405;
