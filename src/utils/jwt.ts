@@ -23,13 +23,15 @@ export const generateTokens = (payload: JWTPayload) => {
     return { accessToken, refreshToken };
 };
 
-export const verifyAccessToken = (token: string) => {
+export function verifyAccessToken(token: string) {
     try {
-        return jwt.verify(token, JWT_SECRET) as JWTPayload;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+        return decoded as { userId: number; email: string };
     } catch (error) {
-        return null;
+        // Re-throw the error to be caught by middleware
+        throw error;
     }
-};
+}
 
 export const verifyRefreshToken = (token: string) => {
     try {
