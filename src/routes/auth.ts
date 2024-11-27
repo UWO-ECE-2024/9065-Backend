@@ -244,6 +244,135 @@ authRoutes.post("/login", async (req, res) => {
     }
 });
 
+const refreshTokenSchema = z.object({
+    refreshToken: z.string(),
+});
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh access token using refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ */
+authRoutes.post("/refresh", async (req, res) => {
+    try {
+        const validation = refreshTokenSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({
+                error: {
+                    issues: validation.error.issues.map((issue) => ({
+                        code: "validation_error",
+                        message: issue.message,
+                    })),
+                },
+            });
+        }
+
+        const { refreshToken } = validation.data;
+
+        // Find user with this refresh token
+        const user = await db
+            .select()
+            .from(users)
+            .where(eq(users.refreshToken, refreshToken))
+            .execute();
+
+        if (user.length === 0) {
+            return res.status(401).json({
+                error: {
+                    issues: [
+                        {
+                            code: "invalid_refresh_token",
+                            message: "Invalid refresh token",
+                        },
+                    ],
+                },
+            });
+        }
+
+        // Generate new tokens
+        const tokens = generateTokens({
+            userId: user[0].userId,
+            email: user[0].email,
+        });
+
+        // Update refresh token in database
+        await db
+            .update(users)
+            .set({ refreshToken: tokens.refreshToken })
+            .where(eq(users.userId, user[0].userId))
+            .execute();
+
+        res.json({
+            message: "Tokens refreshed successfully",
+            data: { tokens },
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: {
+                issues: [
+                    {
+                        code: "internal_server_error",
+                        message: (error as Error).message ?? "Internal server error",
+                    },
+                ],
+            },
+        });
+    }
+});
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully logged out
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ */
+authRoutes.post("/logout", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        // Clear refresh token in database
+        await db
+            .update(users)
+            .set({ refreshToken: null })
+            .where(eq(users.userId, req.user.userId))
+            .execute();
+
+        res.json({
+            message: "Logged out successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: {
+                issues: [
+                    {
+                        code: "internal_server_error",
+                        message: (error as Error).message ?? "Internal server error",
+                    },
+                ],
+            },
+        });
+    }
+});
+
 /**
  * @swagger
  * /auth/me:
