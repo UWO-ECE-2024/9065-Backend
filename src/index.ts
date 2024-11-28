@@ -12,6 +12,7 @@ import authRoutes from "./routes/auth";
 import profileRoutes from "./routes/profile";
 import bodyParser from "body-parser";
 import path from "path";
+import { url } from "inspector";
 
 dotenv.config();
 
@@ -29,6 +30,9 @@ const swaggerOptions = {
     servers: [
       {
         url: `http://localhost:${process.env.SERVER_PORT}/v1`,
+      },
+      {
+        url: `http://34.192.104.182:${process.env.SERVER_PORT}/v1`,
       },
     ],
     components: {
