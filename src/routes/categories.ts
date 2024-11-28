@@ -6,7 +6,6 @@ import { generator } from "../libs/id_generator";
 
 const categoryRoutes = Router();
 
-
 /**
  * @swagger
  * /category/list:
@@ -124,7 +123,7 @@ categoryRoutes.get("/list", async (req, res) => {
  *         description: Internal server error
  */
 
-categoryRoutes.get("/:name/products", async (req, res) => {
+categoryRoutes.get("/:name/products", async (req: any, res: any) => {
   try {
     const categoryName = req.params.name;
     const category = await db
@@ -265,7 +264,7 @@ categoryRoutes.get("/:name/products", async (req, res) => {
  *                           message:
  *                             type: string
  */
-categoryRoutes.post("/create", async (req, res) => {
+categoryRoutes.post("/create", async (req: any, res: any) => {
   try {
     const { name, description, parentCategoryId } = req.body;
 
@@ -449,7 +448,7 @@ categoryRoutes.post("/create", async (req, res) => {
  *                           message:
  *                             type: string
  */
-categoryRoutes.put("/update", async (req, res) => {
+categoryRoutes.put("/update", async (req: any, res: any) => {
   try {
     const { id, name, description, parentCategoryId, isActive } = req.body;
 
@@ -620,7 +619,7 @@ categoryRoutes.put("/update", async (req, res) => {
  *                           message:
  *                             type: string
  */
-categoryRoutes.delete("/delete", async (req, res) => {
+categoryRoutes.delete("/delete", async (req: any, res: any) => {
   try {
     const { id: categoryId } = req.body;
 

@@ -97,7 +97,7 @@ const cartRoutes = Router();
  *                             type: string
  */
 
-cartRoutes.post("/create", async (req, res) => {
+cartRoutes.post("/create", async (req: any, res: any) => {
   try {
     const { userId } = req.body;
     console.log(userId);
@@ -333,7 +333,7 @@ cartRoutes.delete("/:id", async (req, res) => {
         issues: [
           {
             code: "internal_server_error",
-            message: (error as Error).message ??  "Internal server error",
+            message: (error as Error).message ?? "Internal server error",
           },
         ],
       },
@@ -463,7 +463,7 @@ cartRoutes.get("/user/:userId", async (req, res) => {
         issues: [
           {
             code: "internal_server_error",
-            message: (error as Error).message ??  "Internal server error",
+            message: (error as Error).message ?? "Internal server error",
           },
         ],
       },
