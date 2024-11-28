@@ -24,5 +24,6 @@ jobs:
           git checkout deploy
           git pull origin deploy
           npm install
+          pnpm run build
           pnpm run db:migrate
           pm2 restart 9065-Backend
