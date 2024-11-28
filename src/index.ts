@@ -49,17 +49,17 @@ const swaggerDocs = swaggerjsdoc(swaggerOptions);
 app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use('/upload', express.static(path.join(__dirname, 'upload')));
+app.use("/upload", express.static(path.join(__dirname, "upload")));
 
 app.use(
   cors({
-    origin: "http://localhost:3001", // or whatever port your frontend is running on
+    origin: "*", // or whatever port your frontend is running on
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"], // Add Authorization to allowed headers
-    credentials: true
+    credentials: true,
   })
 );
-app.use(express.json())
+app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use("/v1/auth", authRoutes);
