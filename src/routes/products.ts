@@ -42,16 +42,93 @@ const productsRoutes = Router();
  */
 productsRoutes.get("/list", async (req, res) => {
   try {
-    const result = await db
-      .select()
+    const productsList = await db
+      .select({
+        products: {
+          productId: products.productId,
+          name: products.name,
+          description: products.description,
+          basePrice: products.basePrice,
+          stockQuantity: products.stockQuantity,
+          isActive: products.isActive,
+          createdAt: products.createdAt,
+          updatedAt: products.updatedAt,
+        },
+        product_images: {
+          imageId: productImages.imageId,
+          url: productImages.url,
+          altText: productImages.altText,
+          displayOrder: productImages.displayOrder,
+          isPrimary: productImages.isPrimary,
+        },
+        product_attributes: {
+          attributeId: productAttributes.attributeId,
+          attributeName: productAttributes.key,
+          attributeValue: productAttributes.value,
+        },
+      })
       .from(products)
+      .leftJoin(productImages, eq(products.productId, productImages.productId))
       .leftJoin(
         productAttributes,
         eq(products.productId, productAttributes.productId)
       )
-      .leftJoin(productImages, eq(products.productId, productImages.productId))
       .orderBy(desc(products.createdAt))
-      .limit(50);
+      .limit(50)
+      .execute();
+
+    // Group products with their images and attributes
+    const groupedProducts = productsList.reduce((acc, item) => {
+      const { products, product_images, product_attributes } = item;
+      const {
+        productId,
+        name,
+        description,
+        basePrice,
+        stockQuantity,
+        isActive,
+        createdAt,
+        updatedAt,
+      } = products;
+      const { imageId, url, altText, displayOrder, isPrimary } =
+        product_images || {};
+      const { attributeId, attributeName, attributeValue } =
+        product_attributes || {};
+
+      if (!acc[productId]) {
+        acc[productId] = {
+          productId,
+          name,
+          description,
+          basePrice,
+          stockQuantity,
+          isActive,
+          createdAt,
+          updatedAt,
+          images: [],
+          attributes: [],
+        };
+      }
+      if (imageId) {
+        acc[productId].images.push({
+          imageId,
+          url,
+          altText,
+          displayOrder,
+          isPrimary,
+        });
+      }
+      if (attributeId) {
+        acc[productId].attributes.push({
+          attributeId,
+          attributeName,
+          attributeValue,
+        });
+      }
+      return acc;
+    }, {} as Record<number, any>);
+
+    const result = Object.values(groupedProducts);
     return res.status(200).json({
       data: result,
     }) as any;
@@ -106,49 +183,124 @@ productsRoutes.get("/list", async (req, res) => {
 // @ts-ignore
 productsRoutes.get("/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
 
-    // Fetch product details
-    const product = await db
-      .select()
-      .from(products)
-      .where(eq(products.productId, id))
-      .execute();
-
-    if (product.length === 0) {
-      return res.status(404).json({
-        error: {
-          issues: [
-            {
-              code: "not_found",
-              message: "Product not found",
-            },
-          ],
+    const productsList = await db
+      .select({
+        products: {
+          productId: products.productId,
+          name: products.name,
+          description: products.description,
+          basePrice: products.basePrice,
+          stockQuantity: products.stockQuantity,
+          isActive: products.isActive,
+          createdAt: products.createdAt,
+          updatedAt: products.updatedAt,
         },
-      });
-    }
-
-    // Fetch product attributes
-    const attributes = await db
-      .select()
-      .from(productAttributes)
-      .where(eq(productAttributes.productId, id))
+        product_images: {
+          imageId: productImages.imageId,
+          url: productImages.url,
+          altText: productImages.altText,
+          displayOrder: productImages.displayOrder,
+          isPrimary: productImages.isPrimary,
+        },
+        product_attributes: {
+          attributeId: productAttributes.attributeId,
+          attributeName: productAttributes.key,
+          attributeValue: productAttributes.value,
+        },
+        product_reviews: {
+          reviewId: productReviews.reviewId,
+          rating: productReviews.rating,
+          comment: productReviews.comment,
+          createdAt: productReviews.createdAt,
+        },
+      })
+      .from(products)
+      .leftJoin(productImages, eq(products.productId, productImages.productId))
+      .leftJoin(
+        productAttributes,
+        eq(products.productId, productAttributes.productId)
+      )
+      .leftJoin(
+        productReviews,
+        eq(products.productId, productReviews.productId)
+      ) // Added join for reviews
+      .where(eq(products.productId, parseInt(id)))
+      .orderBy(desc(products.createdAt))
       .execute();
 
-    // Fetch product reviews
-    const reviews = await db
-      .select()
-      .from(productReviews)
-      .where(eq(productReviews.productId, id))
-      .execute();
+    // Group products with their images, attributes, and reviews
+    const groupedProducts = productsList.reduce((acc, item) => {
+      const { products, product_images, product_attributes, product_reviews } =
+        item;
+      const {
+        productId,
+        name,
+        description,
+        basePrice,
+        stockQuantity,
+        isActive,
+        createdAt,
+        updatedAt,
+      } = products;
+      const { imageId, url, altText, displayOrder, isPrimary } =
+        product_images || {};
+      const { attributeId, attributeName, attributeValue } =
+        product_attributes || {};
+      const {
+        reviewId,
+        rating,
+        comment,
+        createdAt: reviewCreatedAt,
+      } = product_reviews || {};
 
-    res.status(200).json({
-      data: {
-        product: product[0],
-        attributes: attributes,
-        reviews: reviews,
-      },
-    });
+      if (!acc[productId]) {
+        acc[productId] = {
+          productId,
+          name,
+          description,
+          basePrice,
+          stockQuantity,
+          isActive,
+          createdAt,
+          updatedAt,
+          images: [],
+          attributes: [],
+          reviews: [], // Added reviews array
+        };
+      }
+      if (imageId) {
+        acc[productId].images.push({
+          imageId,
+          url,
+          altText,
+          displayOrder,
+          isPrimary,
+        });
+      }
+      if (attributeId) {
+        acc[productId].attributes.push({
+          attributeId,
+          attributeName,
+          attributeValue,
+        });
+      }
+      if (reviewId) {
+        acc[productId].reviews.push({
+          reviewId,
+          rating,
+          comment,
+          createdAt: reviewCreatedAt,
+        });
+      }
+      return acc;
+    }, {} as Record<number, any>);
+
+    const result = Object.values(groupedProducts);
+    return res.status(200).json({
+      data: result,
+    }) as any;
   } catch (error) {
     res.status(500).json({
       error: {
