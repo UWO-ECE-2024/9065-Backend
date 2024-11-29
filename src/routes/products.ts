@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { productAttributes, productImages, productReviews, products } from "../db/schema";
+import {
+  productAttributes,
+  productImages,
+  productReviews,
+  products,
+} from "../db/schema";
 import { db } from "../db";
 import { desc, eq, like, or } from "drizzle-orm";
 
@@ -37,7 +42,16 @@ const productsRoutes = Router();
  */
 productsRoutes.get("/list", async (req, res) => {
   try {
-    const result = await db.select().from(products);
+    const result = await db
+      .select()
+      .from(products)
+      .leftJoin(
+        productAttributes,
+        eq(products.productId, productAttributes.productId)
+      )
+      .leftJoin(productImages, eq(products.productId, productImages.productId))
+      .orderBy(desc(products.createdAt))
+      .limit(50);
     return res.status(200).json({
       data: result,
     }) as any;
@@ -149,7 +163,6 @@ productsRoutes.get("/:id", async (req, res) => {
   }
 });
 
-
 /**
  * @swagger
  * /products/search:
@@ -229,7 +242,10 @@ productsRoutes.get("/search", async (req, res) => {
       productsList = await db
         .select()
         .from(products)
-        .leftJoin(productImages, eq(products.productId, productImages.productId))
+        .leftJoin(
+          productImages,
+          eq(products.productId, productImages.productId)
+        )
         .where(
           or(
             like(products.name, `%${search}%`),
@@ -242,7 +258,10 @@ productsRoutes.get("/search", async (req, res) => {
       productsList = await db
         .select()
         .from(products)
-        .leftJoin(productImages, eq(products.productId, productImages.productId))
+        .leftJoin(
+          productImages,
+          eq(products.productId, productImages.productId)
+        )
         .where(eq(products.categoryId, Number(category)))
         .execute();
     } else {
@@ -250,7 +269,10 @@ productsRoutes.get("/search", async (req, res) => {
       productsList = await db
         .select()
         .from(products)
-        .leftJoin(productImages, eq(products.productId, productImages.productId))
+        .leftJoin(
+          productImages,
+          eq(products.productId, productImages.productId)
+        )
         .orderBy(desc(products.createdAt))
         .limit(20)
         .execute();
@@ -259,8 +281,18 @@ productsRoutes.get("/search", async (req, res) => {
     // Group products with their images
     const groupedProducts = productsList.reduce((acc, item) => {
       const { products, product_images } = item;
-      const { productId, name, description, basePrice, stockQuantity, isActive, createdAt, updatedAt } = products;
-      const { imageId, url, altText, displayOrder, isPrimary } = product_images || {};
+      const {
+        productId,
+        name,
+        description,
+        basePrice,
+        stockQuantity,
+        isActive,
+        createdAt,
+        updatedAt,
+      } = products;
+      const { imageId, url, altText, displayOrder, isPrimary } =
+        product_images || {};
       if (!acc[productId]) {
         acc[productId] = {
           productId,
@@ -278,7 +310,13 @@ productsRoutes.get("/search", async (req, res) => {
         if (!acc[productId].images) {
           acc[productId].images = [];
         }
-        acc[productId].images.push({ imageId, url, altText, displayOrder, isPrimary });
+        acc[productId].images.push({
+          imageId,
+          url,
+          altText,
+          displayOrder,
+          isPrimary,
+        });
       }
       return acc;
     }, {} as Record<number, any>);
