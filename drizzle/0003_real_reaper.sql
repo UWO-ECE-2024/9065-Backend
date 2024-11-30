@@ -1,0 +1,1 @@
+ALTER TABLE "payment_methods" ALTER COLUMN "last_four" SET DATA TYPE varchar;

@@ -13,6 +13,7 @@ import profileRoutes from "./routes/profile";
 import bodyParser from "body-parser";
 import path from "path";
 import { url } from "inspector";
+import { Resend } from "resend";
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ const swaggerOptions = {
 };
 
 const app: Express = express();
+export const resend = new Resend(process.env.EMAIL_KEY);
 const swaggerDocs = swaggerjsdoc(swaggerOptions);
 app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({ extended: false }));

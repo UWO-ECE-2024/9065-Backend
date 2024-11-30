@@ -55,9 +55,9 @@ export const paymentMethods = pgTable("payment_methods", {
     .notNull()
     .references(() => users.userId, { onDelete: "cascade" }),
   cardType: varchar("card_type", { length: 50 }).notNull(),
-  lastFour: varchar("last_four", { length: 4 }).notNull(),
+  lastFour: varchar("last_four").notNull(),
   holderName: varchar("holder_name", { length: 255 }).notNull(),
-  expiryDate: date("expiry_date").notNull(),
+  expiryDate: varchar("expiry_date", { length: 10 }).notNull(),
   isDefault: boolean("is_default").default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
@@ -172,18 +172,16 @@ export const cartItems = pgTable("cart_items", {
 // Orders table
 export const orders = pgTable("orders", {
   orderId: bigint("order_id", { mode: "number" }).primaryKey().notNull(),
-  userId: bigint("user_id", { mode: "number" })
-    .notNull()
-    .references(() => users.userId),
-  shippingAddressId: bigint("shipping_address_id", { mode: "number" })
-    .notNull()
-    .references(() => userAddresses.addressId),
-  billingAddressId: bigint("billing_address_id", { mode: "number" })
-    .notNull()
-    .references(() => userAddresses.addressId),
-  paymentMethodId: bigint("payment_method_id", { mode: "number" })
-    .notNull()
-    .references(() => paymentMethods.paymentId),
+  userId: bigint("user_id", { mode: "number" }).notNull(),
+  // .references(() => users.userId),
+  shippingAddressId: bigint("shipping_address_id", {
+    mode: "number",
+  }).notNull(),
+  // .references(() => userAddresses.addressId),
+  billingAddressId: bigint("billing_address_id", { mode: "number" }).notNull(),
+  // .references(() => userAddresses.addressId),
+  paymentMethodId: bigint("payment_method_id", { mode: "number" }).notNull(),
+  // .references(() => paymentMethods.paymentId),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 50 }).notNull().default("pending"),
   ...createTimestamps,
