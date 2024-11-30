@@ -480,6 +480,128 @@ cartRoutes.get("/user/:userId", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /cart/checkout:
+ *   post:
+ *     summary: Checkout and create an order
+ *     description: Processes a checkout request, creates an order, and sends a confirmation email.
+ *     tags:
+ *       - Carts
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               products:
+ *                 type: array
+ *                 description: List of products to be ordered
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     productId:
+ *                       type: string
+ *                       description: The ID of the product
+ *                     quantity:
+ *                       type: integer
+ *                       description: The quantity of the product
+ *                     basePrice:
+ *                       type: number
+ *                       format: float
+ *                       description: The base price of the product
+ *               paymentMethod:
+ *                 type: object
+ *                 description: Payment method details
+ *                 properties:
+ *                   cardType:
+ *                     type: string
+ *                   lastFour:
+ *                     type: string
+ *                   holderName:
+ *                     type: string
+ *                   expiryDate:
+ *                     type: string
+ *               userId:
+ *                 type: string
+ *                 description: The ID of the user making the order
+ *               addressId:
+ *                 type: string
+ *                 description: The ID of the address for shipping and billing
+ *               email:
+ *                 type: string
+ *                 description: The email address to send the order confirmation
+ *     responses:
+ *       '201':
+ *         description: Order created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orderId:
+ *                       type: integer
+ *                       description: The ID of the created order
+ *                     orderTime:
+ *                       type: string
+ *                       format: date-time
+ *                       description: The time the order was created
+ *                     products:
+ *                       type: array
+ *                       description: List of ordered products
+ *                       items:
+ *                         type: object
+ *                     email:
+ *                       type: object
+ *                       description: Email sending result
+ *                     message:
+ *                       type: string
+ *                       example: Order created successfully
+ *       '400':
+ *         description: Invalid request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     issues:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           code:
+ *                             type: string
+ *                           message:
+ *                             type: string
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     issues:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           code:
+ *                             type: string
+ *                             example: internal_server_error
+ *                           message:
+ *                             type: string
+ *                             example: Internal server error
+ */
 cartRoutes.post("/checkout", async (req: any, res: any) => {
   try {
     const { products, paymentMethod, userId, addressId, email } = req.body;
@@ -526,7 +648,7 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
 
     // Create a new order
     const newOrderId = Number(generator.nextId()); // Assume a function to generate unique IDs
-    await db
+    const create_time = await db
       .insert(orders)
       // @ts-ignore
       .values({
@@ -538,6 +660,7 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
         paymentMethodId: paymentMethodId, // Ensure this matches the schema
         status: "pending",
       })
+      .returning({ createdAt: orders.createdAt })
       .execute();
 
     // Insert order items
@@ -587,9 +710,9 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
                         </td>
                         <td width="50%" style="text-align: right; padding-bottom: 20px;">
                             <p style="font-size: 14px; color: #666; margin: 0;">Order date</p>
-                            <p style="font-size: 16px; font-weight: bold; margin: 5px 0 0;">${dayjs().format(
-                              "MMMM D, YYYY"
-                            )}</p>
+                            <p style="font-size: 16px; font-weight: bold; margin: 5px 0 0;">${dayjs(
+                              create_time[0].createdAt
+                            ).format("MMMM D, YYYY")}</p>
                         </td>
                     </tr>
                 </table>
@@ -597,7 +720,9 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
                     
                     <tr>
                         <td style="text-align: center; padding-bottom: 20px;">
-                            <p style="font-size: 16px; margin: 0;">Estimated delivery: <strong>${dayjs()
+                            <p style="font-size: 16px; margin: 0;">Estimated delivery: <strong>${dayjs(
+                              create_time[0].createdAt
+                            )
                               .add(5, "day")
                               .format("MMMM D, YYYY")}</strong></p>
                         </td>
@@ -658,6 +783,7 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
     res.status(201).json({
       data: {
         orderId: newOrderId,
+        orderTime: create_time[0].createdAt,
         products: products,
         email: data,
         message: "Order created successfully",
