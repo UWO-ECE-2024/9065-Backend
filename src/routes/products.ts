@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  categories,
   productAttributes,
   productImages,
   productReviews,
@@ -46,6 +47,7 @@ productsRoutes.get("/list", async (req, res) => {
       .select({
         products: {
           productId: products.productId,
+          categoryId: products.categoryId,
           name: products.name,
           description: products.description,
           basePrice: products.basePrice,
@@ -82,6 +84,7 @@ productsRoutes.get("/list", async (req, res) => {
       const { products, product_images, product_attributes } = item;
       const {
         productId,
+        categoryId,
         name,
         description,
         basePrice,
@@ -98,6 +101,7 @@ productsRoutes.get("/list", async (req, res) => {
       if (!acc[productId]) {
         acc[productId] = {
           productId,
+          categoryId,
           name,
           description,
           basePrice,
@@ -134,6 +138,245 @@ productsRoutes.get("/list", async (req, res) => {
     }) as any;
   } catch (error) {
     return res.status(500).json({
+      error: {
+        issues: [
+          {
+            code: "internal_server_error",
+            message: (error as Error).message ?? "Internal server error",
+          },
+        ],
+      },
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /products/search:
+ *   get:
+ *     summary: Search for products.
+ *     description: Retrieve a list of products based on search criteria such as name, description, or category. Includes product images.
+ *     tags:
+ *       - Product
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         description: Search term to filter products by name or description.
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Category ID to filter products.
+ *     responses:
+ *       '200':
+ *         description: A successful response with a list of products and their images.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       productId:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       basePrice:
+ *                         type: number
+ *                       stockQuantity:
+ *                         type: integer
+ *                       isActive:
+ *                         type: boolean
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                       images:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             imageId:
+ *                               type: string
+ *                             url:
+ *                               type: string
+ *                             altText:
+ *                               type: string
+ *                             displayOrder:
+ *                               type: integer
+ *                             isPrimary:
+ *                               type: boolean
+ *       '500':
+ *         description: Internal server error
+ */
+productsRoutes.get("/search", async (req, res) => {
+  try {
+    const { query, category } = req.query;
+
+    let productsList;
+
+    if (query) {
+      // Search for products by name or description and include images
+      productsList = await db
+        .select({
+          products: {
+            productId: products.productId,
+            name: products.name,
+            description: products.description,
+            basePrice: products.basePrice,
+            stockQuantity: products.stockQuantity,
+            isActive: products.isActive,
+            createdAt: products.createdAt,
+            updatedAt: products.updatedAt,
+            categoryId: products.categoryId, // Include categoryId
+          },
+          product_images: {
+            imageId: productImages.imageId,
+            url: productImages.url,
+            altText: productImages.altText,
+            displayOrder: productImages.displayOrder,
+            isPrimary: productImages.isPrimary,
+          },
+        })
+        .from(products)
+        .leftJoin(
+          productImages,
+          eq(products.productId, productImages.productId)
+        )
+        .where(
+          or(
+            like(products.name, `%${query}%`),
+            like(products.description, `%${query}%`)
+          )
+        )
+        .execute();
+    } else if (category) {
+      // Fetch products by category and include images
+      productsList = await db
+        .select({
+          products: {
+            productId: products.productId,
+            name: products.name,
+            description: products.description,
+            basePrice: products.basePrice,
+            stockQuantity: products.stockQuantity,
+            isActive: products.isActive,
+            createdAt: products.createdAt,
+            updatedAt: products.updatedAt,
+            categoryId: products.categoryId, // Include categoryId
+          },
+          product_images: {
+            imageId: productImages.imageId,
+            url: productImages.url,
+            altText: productImages.altText,
+            displayOrder: productImages.displayOrder,
+            isPrimary: productImages.isPrimary,
+          },
+        })
+        .from(products)
+        .leftJoin(
+          productImages,
+          eq(products.productId, productImages.productId)
+        )
+        .leftJoin(categories, eq(products.categoryId, categories.categoryId))
+        .where(eq(categories.name, category)) // Filter by category name
+        .execute();
+    } else {
+      // Fetch the latest 20 products and include images
+      productsList = await db
+        .select({
+          products: {
+            productId: products.productId,
+            name: products.name,
+            description: products.description,
+            basePrice: products.basePrice,
+            stockQuantity: products.stockQuantity,
+            isActive: products.isActive,
+            createdAt: products.createdAt,
+            updatedAt: products.updatedAt,
+            categoryId: products.categoryId, // Include categoryId
+          },
+          product_images: {
+            imageId: productImages.imageId,
+            url: productImages.url,
+            altText: productImages.altText,
+            displayOrder: productImages.displayOrder,
+            isPrimary: productImages.isPrimary,
+          },
+        })
+        .from(products)
+        .leftJoin(
+          productImages,
+          eq(products.productId, productImages.productId)
+        )
+        .orderBy(desc(products.createdAt))
+        .limit(20)
+        .execute();
+    }
+
+    // Group products with their images
+    const groupedProducts = productsList.reduce((acc, item) => {
+      const { products, product_images } = item;
+      const {
+        productId,
+        categoryId,
+        name,
+        description,
+        basePrice,
+        stockQuantity,
+        isActive,
+        createdAt,
+        updatedAt,
+      } = products;
+      const { imageId, url, altText, displayOrder, isPrimary } =
+        product_images || {};
+      if (!acc[productId as never]) {
+        // @ts-ignore
+        acc[productId] = {
+          productId,
+          categoryId,
+          name,
+          description,
+          basePrice,
+          stockQuantity,
+          isActive,
+          createdAt,
+          updatedAt,
+          images: [],
+        };
+      }
+      if (imageId) {
+        // @ts-ignore
+        if (!acc[productId].images) {
+          // @ts-ignore
+          acc[productId].images = [];
+        }
+        // @ts-ignore
+        acc[productId].images.push({
+          imageId,
+          url,
+          altText,
+          displayOrder,
+          isPrimary,
+        });
+      }
+      return acc;
+    }, {} as Record<number, any>);
+
+    res.status(200).json({
+      data: Object.values(groupedProducts),
+    });
+  } catch (error) {
+    res.status(500).json({
       error: {
         issues: [
           {
@@ -301,181 +544,6 @@ productsRoutes.get("/:id", async (req, res) => {
     return res.status(200).json({
       data: result,
     }) as any;
-  } catch (error) {
-    res.status(500).json({
-      error: {
-        issues: [
-          {
-            code: "internal_server_error",
-            message: (error as Error).message ?? "Internal server error",
-          },
-        ],
-      },
-    });
-  }
-});
-
-/**
- * @swagger
- * /products/search:
- *   get:
- *     summary: Search for products.
- *     description: Retrieve a list of products based on search criteria such as name, description, or category. Includes product images.
- *     tags:
- *       - Product
- *     parameters:
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search term to filter products by name or description.
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *         description: Category ID to filter products.
- *     responses:
- *       '200':
- *         description: A successful response with a list of products and their images.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       productId:
- *                         type: string
- *                       name:
- *                         type: string
- *                       description:
- *                         type: string
- *                       basePrice:
- *                         type: number
- *                       stockQuantity:
- *                         type: integer
- *                       isActive:
- *                         type: boolean
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *                       updatedAt:
- *                         type: string
- *                         format: date-time
- *                       images:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             imageId:
- *                               type: string
- *                             url:
- *                               type: string
- *                             altText:
- *                               type: string
- *                             displayOrder:
- *                               type: integer
- *                             isPrimary:
- *                               type: boolean
- *       '500':
- *         description: Internal server error
- */
-productsRoutes.get("/search", async (req, res) => {
-  try {
-    const { search, category } = req.query;
-
-    let productsList;
-
-    if (search) {
-      // Search for products by name or description and include images
-      productsList = await db
-        .select()
-        .from(products)
-        .leftJoin(
-          productImages,
-          eq(products.productId, productImages.productId)
-        )
-        .where(
-          or(
-            like(products.name, `%${search}%`),
-            like(products.description, `%${search}%`)
-          )
-        )
-        .execute();
-    } else if (category) {
-      // Fetch products by category and include images
-      productsList = await db
-        .select()
-        .from(products)
-        .leftJoin(
-          productImages,
-          eq(products.productId, productImages.productId)
-        )
-        .where(eq(products.categoryId, Number(category)))
-        .execute();
-    } else {
-      // Fetch the latest 20 products and include images
-      productsList = await db
-        .select()
-        .from(products)
-        .leftJoin(
-          productImages,
-          eq(products.productId, productImages.productId)
-        )
-        .orderBy(desc(products.createdAt))
-        .limit(20)
-        .execute();
-    }
-
-    // Group products with their images
-    const groupedProducts = productsList.reduce((acc, item) => {
-      const { products, product_images } = item;
-      const {
-        productId,
-        name,
-        description,
-        basePrice,
-        stockQuantity,
-        isActive,
-        createdAt,
-        updatedAt,
-      } = products;
-      const { imageId, url, altText, displayOrder, isPrimary } =
-        product_images || {};
-      if (!acc[productId]) {
-        acc[productId] = {
-          productId,
-          name,
-          description,
-          basePrice,
-          stockQuantity,
-          isActive,
-          createdAt,
-          updatedAt,
-          images: [],
-        };
-      }
-      if (imageId) {
-        if (!acc[productId].images) {
-          acc[productId].images = [];
-        }
-        acc[productId].images.push({
-          imageId,
-          url,
-          altText,
-          displayOrder,
-          isPrimary,
-        });
-      }
-      return acc;
-    }, {} as Record<number, any>);
-
-    res.status(200).json({
-      data: Object.values(groupedProducts),
-    });
   } catch (error) {
     res.status(500).json({
       error: {
