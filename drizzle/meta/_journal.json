@@ -22,6 +22,41 @@
       "when": 1732594865694,
       "tag": "0002_fixed_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1732990735661,
+      "tag": "0003_real_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1732994120693,
+      "tag": "0004_tricky_molly_hayes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1732994198254,
+      "tag": "0005_wild_masked_marvel",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1732995365992,
+      "tag": "0006_last_sentinels",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1732998828292,
+      "tag": "0007_quiet_forgotten_one",
+      "breakpoints": true
     }
   ]
 }
