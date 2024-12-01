@@ -7,9 +7,10 @@ import {
   orders,
   paymentMethods,
   users,
+  products as pp
 } from "../db/schema";
 import { generator } from "../libs/id_generator";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { resend } from "..";
 import dayjs from "dayjs";
 
@@ -606,6 +607,7 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
   try {
     const { products, paymentMethod, userId, addressId, email } = req.body;
 
+
     if (!products || !userId || !addressId) {
       return res.status(400).json({
         error: {
@@ -621,174 +623,188 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
     }
 
     // Validate products and calculate total price
-    let totalPrice = 0;
-    for (const product of products) {
-      totalPrice += Number(product.basePrice) * product.quantity;
-    }
-    let tax = Number(totalPrice * 0.13);
-    // Check if paymentMethod is not an object and insert into payment table
-    let paymentMethodId;
-    if (typeof paymentMethod === "object") {
-      const newPaymentId = Number(generator.nextId());
-      await db
-        .insert(paymentMethods)
-        .values({
-          paymentId: newPaymentId,
-          userId: Number(userId),
-          cardType: paymentMethod.cardType, // Assuming paymentMethod has these properties
-          lastFour: paymentMethod.lastFour,
-          holderName: paymentMethod.holderName,
-          expiryDate: paymentMethod.expiryDate,
-        })
-        .execute();
-      paymentMethodId = newPaymentId;
-    } else {
-      paymentMethodId = 0; // Assuming paymentMethod object has an 'id' property
-    }
+    await db.transaction(async (trx) => {
+      // Validate products and calculate total price
+      let totalPrice = 0;
+      for (const product of products) {
+        totalPrice += Number(product.basePrice) * product.quantity;
+      }
+      let tax = Number(totalPrice * 0.13);
 
-    // Create a new order
-    const newOrderId = Number(generator.nextId()); // Assume a function to generate unique IDs
-    const create_time = await db
-      .insert(orders)
-      // @ts-ignore
-      .values({
-        userId: Number(userId),
-        shippingAddressId: Number(addressId),
-        billingAddressId: Number(addressId),
-        totalAmount: Number(totalPrice + tax),
-        orderId: newOrderId,
-        paymentMethodId: paymentMethodId, // Ensure this matches the schema
-        status: "pending",
-      })
-      .returning({ createdAt: orders.createdAt })
-      .execute();
+      // Check if paymentMethod is an object and insert into payment table
+      let paymentMethodId;
+      if (typeof paymentMethod === "object") {
+        const newPaymentId = Number(generator.nextId());
+        await trx
+          .insert(paymentMethods)
+          .values({
+            paymentId: newPaymentId,
+            userId: Number(userId),
+            cardType: paymentMethod.cardType,
+            lastFour: paymentMethod.lastFour,
+            holderName: paymentMethod.holderName,
+            expiryDate: paymentMethod.expiryDate,
+          })
+          .execute();
+        paymentMethodId = newPaymentId;
+      } else {
+        paymentMethodId = 0; // Assuming paymentMethod object has an 'id' property
+      }
 
-    // Insert order items
-    for (const product of products) {
-      const orderItemId = Number(generator.nextId());
-      await db
-        .insert(orderItems)
+      // Update stock quantities
+      for (const product of products) {
+        await trx
+          .update(pp)
+          .set({
+            stockQuantity: sql`${pp.stockQuantity} - ${product.quantity}`,
+          })
+          .where(eq(pp.productId, product.productId))
+          .execute();
+      }
+
+      // Create a new order
+      const newOrderId = Number(generator.nextId());
+      const create_time = await trx
+        .insert(orders)
         // @ts-ignore
         .values({
-          orderItemId,
+          userId: Number(userId),
+          shippingAddressId: Number(addressId),
+          billingAddressId: Number(addressId),
+          totalAmount: Number(totalPrice + tax),
           orderId: newOrderId,
-          productId: product.productId,
-          quantity: product.quantity,
-          unitPrice: product.basePrice,
-          subtotal: Number(product.basePrice) * product.quantity,
+          paymentMethodId: paymentMethodId,
+          status: "pending",
         })
+        .returning({ createdAt: orders.createdAt })
         .execute();
-    }
 
-    const { data, error } = await resend.emails.send({
-      from: "Laptop Store <shop@email.jimmieluo.com>",
-      to: [email],
-      subject: "Order Receipt",
-      html: `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Successful - Order Confirmation</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-        <tr>
-            <td style="padding: 40px 20px; text-align: center; background-color: #f9f9f9;">
-                <img src="https://cdn-icons-png.flaticon.com/512/17676/17676914.png" alt="Success" style="width: 60px; height: 60px;">
-                <h1 style="color: #4CAF50; margin-top: 20px;">Payment Successful!</h1>
-                <p style="font-size: 16px; color: #666;">Thank you for your purchase. Your order has been confirmed.</p>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px;">
-                <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                        <td width="50%" style="padding-bottom: 20px;">
-                            <p style="font-size: 14px; color: #666; margin: 0;">Order number</p>
-                            <p style="font-size: 16px; font-weight: bold; margin: 5px 0 0;">${newOrderId}</p>
-                        </td>
-                        <td width="50%" style="text-align: right; padding-bottom: 20px;">
-                            <p style="font-size: 14px; color: #666; margin: 0;">Order date</p>
-                            <p style="font-size: 16px; font-weight: bold; margin: 5px 0 0;">${dayjs(
-                              create_time[0].createdAt
-                            ).format("MMMM D, YYYY")}</p>
-                        </td>
-                    </tr>
-                </table>
-                <table width="100%" cellpadding="0" cellspacing="0">
-                    
-                    <tr>
-                        <td style="text-align: center; padding-bottom: 20px;">
-                            <p style="font-size: 16px; margin: 0;">Estimated delivery: <strong>${dayjs(
-                              create_time[0].createdAt
-                            )
-                              .add(5, "day")
-                              .format("MMMM D, YYYY")}</strong></p>
-                        </td>
-                    </tr>
-                </table>
-                <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #ddd; border-bottom: 1px solid #ddd;">
-                    <tr>
-                        <td style="padding: 20px 0;">
-                            <h2 style="font-size: 18px; margin: 0 0 10px;">Order Summary</h2>
-                            <table width="100%" cellpadding="5" cellspacing="0">
-                                ${products.map((p: any) => {
-                                  return `<tr>
-                                          <td style="font-size: 14px;">${p.name} x ${p.quantity}</td>
-                                          <td style="font-size: 14px; text-align: right;">$${p.basePrice}</td>
-                                        </tr>
-                                    `;
-                                })}
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-                <table width="100%" cellpadding="5" cellspacing="0" style="margin-top: 20px;">
-                    <tr>
-                        <td style="font-size: 14px;">Subtotal</td>
-                        <td style="font-size: 14px; text-align: right;">$${totalPrice}</td>
-                    </tr>
-                    <tr>
-                        <td style="font-size: 14px;">Tax</td>
-                        <td style="font-size: 14px; text-align: right;">$${tax.toFixed(
-                          2
-                        )}</td>
-                    </tr>
-                    <tr>
-                        <td style="font-size: 16px; font-weight: bold;">Total</td>
-                        <td style="font-size: 16px; font-weight: bold; text-align: right;">$${Number(
-                          totalPrice + tax
-                        ).toFixed(2)}</td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-        <!-- <tr>
-            <td style="padding: 20px; text-align: center;">
-                <a href="#" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 5px;">View Order Details</a>
-            </td>
-        </tr> -->
-        <tr>
-            <td style="padding: 20px; text-align: center; background-color: #f9f9f9; font-size: 14px; color: #666;">
-                <p>If you have any questions, please contact our customer support at <a href="mailto:sluo263@uwo.ca" style="color: #4CAF50; text-decoration: none;">sluo263@uwo.ca</a></p>
-                <p>&copy; 2024 Si Luo eCommerce Store. All rights reserved.</p>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>`,
+      // Insert order items
+      for (const product of products) {
+        const orderItemId = Number(generator.nextId());
+        await trx
+          .insert(orderItems)
+          // @ts-ignore
+          .values({
+            orderItemId,
+            orderId: newOrderId,
+            productId: product.productId,
+            quantity: product.quantity,
+            unitPrice: product.basePrice,
+            subtotal: Number(product.basePrice) * product.quantity,
+          })
+          .execute();
+      }
+      const { data, error } = await resend.emails.send({
+        from: "Laptop Store <shop@email.jimmieluo.com>",
+        to: [email],
+        subject: "Order Receipt",
+        html: `<!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Payment Successful - Order Confirmation</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <tr>
+              <td style="padding: 40px 20px; text-align: center; background-color: #f9f9f9;">
+                  <img src="https://cdn-icons-png.flaticon.com/512/17676/17676914.png" alt="Success" style="width: 60px; height: 60px;">
+                  <h1 style="color: #4CAF50; margin-top: 20px;">Payment Successful!</h1>
+                  <p style="font-size: 16px; color: #666;">Thank you for your purchase. Your order has been confirmed.</p>
+              </td>
+          </tr>
+          <tr>
+              <td style="padding: 20px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                          <td width="50%" style="padding-bottom: 20px;">
+                              <p style="font-size: 14px; color: #666; margin: 0;">Order number</p>
+                              <p style="font-size: 16px; font-weight: bold; margin: 5px 0 0;">${newOrderId}</p>
+                          </td>
+                          <td width="50%" style="text-align: right; padding-bottom: 20px;">
+                              <p style="font-size: 14px; color: #666; margin: 0;">Order date</p>
+                              <p style="font-size: 16px; font-weight: bold; margin: 5px 0 0;">${dayjs(
+                                create_time[0].createdAt
+                              ).format("MMMM D, YYYY")}</p>
+                          </td>
+                      </tr>
+                  </table>
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                      
+                      <tr>
+                          <td style="text-align: center; padding-bottom: 20px;">
+                              <p style="font-size: 16px; margin: 0;">Estimated delivery: <strong>${dayjs(
+                                create_time[0].createdAt
+                              )
+                                .add(5, "day")
+                                .format("MMMM D, YYYY")}</strong></p>
+                          </td>
+                      </tr>
+                  </table>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #ddd; border-bottom: 1px solid #ddd;">
+                      <tr>
+                          <td style="padding: 20px 0;">
+                              <h2 style="font-size: 18px; margin: 0 0 10px;">Order Summary</h2>
+                              <table width="100%" cellpadding="5" cellspacing="0">
+                                  ${products.map((p: any) => {
+                                    return `<tr>
+                                            <td style="font-size: 14px;">${p.name} x ${p.quantity}</td>
+                                            <td style="font-size: 14px; text-align: right;">$${p.basePrice}</td>
+                                          </tr>
+                                      `;
+                                  })}
+                              </table>
+                          </td>
+                      </tr>
+                  </table>
+                  <table width="100%" cellpadding="5" cellspacing="0" style="margin-top: 20px;">
+                      <tr>
+                          <td style="font-size: 14px;">Subtotal</td>
+                          <td style="font-size: 14px; text-align: right;">$${totalPrice}</td>
+                      </tr>
+                      <tr>
+                          <td style="font-size: 14px;">Tax</td>
+                          <td style="font-size: 14px; text-align: right;">$${tax.toFixed(
+                            2
+                          )}</td>
+                      </tr>
+                      <tr>
+                          <td style="font-size: 16px; font-weight: bold;">Total</td>
+                          <td style="font-size: 16px; font-weight: bold; text-align: right;">$${Number(
+                            totalPrice + tax
+                          ).toFixed(2)}</td>
+                      </tr>
+                  </table>
+              </td>
+          </tr>
+          <!-- <tr>
+              <td style="padding: 20px; text-align: center;">
+                  <a href="#" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 5px;">View Order Details</a>
+              </td>
+          </tr> -->
+          <tr>
+              <td style="padding: 20px; text-align: center; background-color: #f9f9f9; font-size: 14px; color: #666;">
+                  <p>If you have any questions, please contact our customer support at <a href="mailto:sluo263@uwo.ca" style="color: #4CAF50; text-decoration: none;">sluo263@uwo.ca</a></p>
+                  <p>&copy; 2024 Si Luo eCommerce Store. All rights reserved.</p>
+              </td>
+          </tr>
+      </table>
+  </body>
+  </html>`,
+      });
+      res.status(201).json({
+        data: {
+          orderId: newOrderId,
+          orderTime: create_time[0].createdAt,
+          products: products,
+          email: data,
+          message: "Order created successfully",
+        },
+      });
     });
-
-    res.status(201).json({
-      data: {
-        orderId: newOrderId,
-        orderTime: create_time[0].createdAt,
-        products: products,
-        email: data,
-        message: "Order created successfully",
-      },
-    });
+    
   } catch (error) {
     res.status(500).json({
       error: {
