@@ -7,7 +7,7 @@ import {
   orders,
   paymentMethods,
   users,
-  products as pp
+  products as pp,
 } from "../db/schema";
 import { generator } from "../libs/id_generator";
 import { eq, and, sql } from "drizzle-orm";
@@ -607,7 +607,6 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
   try {
     const { products, paymentMethod, userId, addressId, email } = req.body;
 
-
     if (!products || !userId || !addressId) {
       return res.status(400).json({
         error: {
@@ -653,12 +652,26 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
 
       // Update stock quantities
       for (const product of products) {
+        const currentStock = await trx
+          .select({ stockQuantity: pp.stockQuantity })
+          .from(pp)
+          .where(eq(pp.productId, product.productId))
+          .execute();
+
+        if (currentStock[0].stockQuantity < product.quantity) {
+          throw new Error(
+            `Insufficient stock for product ID ${product.productId}`
+          );
+        }
+      }
+
+      for (const p of products) {
         await trx
           .update(pp)
           .set({
-            stockQuantity: sql`${pp.stockQuantity} - ${product.quantity}`,
+            stockQuantity: sql`${pp.stockQuantity} - ${p.quantity}`,
           })
-          .where(eq(pp.productId, product.productId))
+          .where(eq(pp.productId, p.productId))
           .execute();
       }
 
@@ -804,7 +817,6 @@ cartRoutes.post("/checkout", async (req: any, res: any) => {
         },
       });
     });
-    
   } catch (error) {
     res.status(500).json({
       error: {
