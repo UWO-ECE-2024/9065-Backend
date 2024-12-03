@@ -472,6 +472,18 @@ productsRoutes.get("/:id", async (req, res) => {
       .where(eq(products.productId, parseInt(id)))
       .orderBy(desc(products.createdAt))
       .execute();
+    if (productsList.length === 0) {
+      return res.status(404).json({
+        error: {
+          issues: [
+            {
+              code: "not_found",
+              message: "Product not found",
+            },
+          ],
+        },
+      });
+    }
 
     // Group products with their images, attributes, and reviews
     const groupedProducts = productsList.reduce((acc, item) => {
