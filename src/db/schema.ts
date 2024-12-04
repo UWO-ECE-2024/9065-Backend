@@ -35,17 +35,6 @@ export const users = pgTable("users", {
   ...createTimestamps,
 });
 
-// Admin users table
-export const admins = pgTable("admins", {
-  adminId: bigint("admin_id", { mode: "number" }).primaryKey().notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-  username: varchar("username", { length: 100 }).notNull(),
-  isActive: boolean("is_active").default(true),
-  refreshToken: text("refresh_token"),
-  ...createTimestamps,
-});
-
 // User addresses table
 export const userAddresses = pgTable("user_addresses", {
   addressId: bigint("address_id", { mode: "number" }).primaryKey().notNull(),

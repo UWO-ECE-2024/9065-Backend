@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "../utils/password";
 import { generateTokens } from "../utils/jwt";
 import { generator } from "../libs/id_generator";
 import { z } from "zod";
-import { authMiddleware } from "../middleware/auth";
+import { AuthRequest, authMiddleware } from "../middleware/auth";
 
 const authRoutes = Router();
 

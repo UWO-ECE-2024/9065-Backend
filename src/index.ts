@@ -9,7 +9,6 @@ import categoryRoutes from "./routes/categories";
 import cartRoutes from "./routes/carts";
 import stocksRoutes from "./routes/stocks";
 import authRoutes from "./routes/auth";
-import adminAuthRoutes from "./routes/adminAuth";
 import profileRoutes from "./routes/profile";
 import bodyParser from "body-parser";
 import path from "path";
@@ -70,7 +69,6 @@ app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use("/v1/auth", authRoutes);
-app.use("/v1/admin-auth", adminAuthRoutes);
 app.use("/v1/products", productsRoutes);
 app.use("/v1/category", categoryRoutes);
 app.use("/v1/stocks", stocksRoutes);
