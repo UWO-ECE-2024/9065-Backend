@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
 });
 
 // 创建 multer 实例
-const upload = multer({ storage: storage });
+const upload = multer({ storage: storage,  limits: { fileSize: 10 * 1024 * 1024 }});
 
 // 添加 '/addCategory' 路由
 /*
@@ -146,6 +146,24 @@ stocksRoutes.post("/addCategory", async (req: any, res: any) => {
  *         description: Internal server error
  */
 
+async function deleteProduct(id:any) {
+  const oldpics = await db.select().from(productImages).where(eq(productImages.productId,id));
+  for (const pic of oldpics) {
+    const filePath = path.join(__dirname, "..", pic.url); // 根据实际的图片路径调整
+    fs.rm(filePath, (err) => {
+      if (err) {
+        console.error(" pic remove failed" + err);
+      }
+    })
+  }
+  await db.delete(productImages).where(eq(productImages.productId,id)).execute().then(async () => {
+    await db.delete(products).where(eq(products.productId,id)).execute();
+  })
+}
+
+
+
+
 stocksRoutes.post("/addProduct", async (req: any, res: any) => {
   // 原有代码保持不变
   console.log(req.body);
@@ -198,6 +216,69 @@ stocksRoutes.post("/addProduct", async (req: any, res: any) => {
     res.status(500).send({ error: "Internal server error" });
   }
 });
+
+
+stocksRoutes.post("/updateProduct", async (req: any, res: any) => {
+   // remove old pics
+  const { id,category_id, name, base_price, description, stock_quantity, pics } =
+      req.body;
+
+  if (!id || !category_id || !name || base_price == null || stock_quantity == null) {
+    return res.status(404).send({
+      error:
+          "Missing required fields. Product Id, Category ID, name, base price, stock quantity are required.",
+    });
+  }
+  if (!pics || pics.length === 0) {
+    return res.status(404).send({ error: "missing pics" });
+  }
+  try {
+    const product = {
+      stockQuantity: stock_quantity,
+      basePrice: base_price,
+      productId: id,
+      name: name,
+      price: base_price,
+      categoryId: category_id,
+      description: description || "",
+      pics: pics || [],
+    };
+    await deleteProduct(id).then(() => {
+          db.insert(products)
+              .values(product)
+              .execute()
+              .then(async () => {
+                for (let i = 0; i < pics.length; i++) {
+                  const pic_sql = {
+                    productId: product.productId,
+                    url: pics[i],
+                    imageId: Number(generator.nextId()),
+                    isPrimary: i == 0,
+                  };
+                  await db.insert(productImages).values(pic_sql).execute();
+                }
+              });
+          }
+      );
+    res.status(201).send({
+      message: "Product updated successfully",
+    });
+  } catch (error) {
+    console.error("Error inserting new product:", error);
+    res.status(500).send({ error: "Internal server error" });
+  }
+})
+
+stocksRoutes.patch("/deleteProductById/:id", async (req: any, res: any) => {
+  try {
+    const id = parseInt(req.params.id);
+    await deleteProduct(id);
+    res.send({ message: "stock deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting stock:", error);
+    res.status(500).send({ error: "Internal server error" });
+  }
+})
 
 /**
  * @swagger
