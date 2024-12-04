@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "../db";
 import { users, userAddresses } from "../db/schema";
 import { and, eq, not } from "drizzle-orm";
-import { AuthRequest, authMiddleware } from "../middleware/auth";
+import { authMiddleware } from "../middleware/auth";
 import { z } from "zod";
 import { generator } from "../libs/id_generator";
 import { paymentMethods } from "../db/schema";
