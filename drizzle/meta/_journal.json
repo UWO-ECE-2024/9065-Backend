@@ -64,6 +64,20 @@
       "when": 1733291809195,
       "tag": "0008_dear_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1733291809195,
+      "tag": "0009_dear_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1733354103905,
+      "tag": "0010_green_rogue",
+      "breakpoints": true
     }
   ]
 }
