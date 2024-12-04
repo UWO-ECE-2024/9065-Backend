@@ -613,4 +613,40 @@ profileRoutes.delete("/payment-methods/:paymentId", authMiddleware as any, async
   }
 });
 
+// Get default payment method
+profileRoutes.get(
+  "/payment-methods/default",
+  authMiddleware as any,
+  async (req: any, res: any) => {
+    try {
+      const defaultMethod = await db
+        .select()
+        .from(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.userId, req.user.userId),
+            eq(paymentMethods.isDefault, true)
+          )
+        )
+        .execute();
+
+      res.json({
+        message: "Default payment method retrieved successfully",
+        data: defaultMethod[0] || null,
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: {
+          issues: [
+            {
+              code: "internal_server_error",
+              message: (error as Error).message ?? "Internal server error",
+            },
+          ],
+        },
+      });
+    }
+  }
+);
+
 export default profileRoutes;
