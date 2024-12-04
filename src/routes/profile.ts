@@ -7,6 +7,40 @@ import { z } from "zod";
 import { generator } from "../libs/id_generator";
 import { paymentMethods } from "../db/schema";
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Address:
+ *       type: object
+ *       properties:
+ *         streetAddress:
+ *           type: string
+ *         city:
+ *           type: string
+ *         state:
+ *           type: string
+ *         postalCode:
+ *           type: string
+ *         country:
+ *           type: string
+ *         isDefault:
+ *           type: boolean
+ *     PaymentMethod:
+ *       type: object
+ *       properties:
+ *         cardType:
+ *           type: string
+ *         lastFour:
+ *           type: string
+ *         holderName:
+ *           type: string
+ *         expiryDate:
+ *           type: string
+ *         isDefault:
+ *           type: boolean
+ */
+
 const profileRoutes = Router();
 const MAX_ADDRESSES_PER_USER = 3;
 const MAX_PAYMENT_METHODS_PER_USER = 3;
@@ -35,7 +69,23 @@ const paymentMethodSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-// Get user profile
+/**
+ * @swagger
+ * /profile:
+ *   get:
+ *     summary: Get user profile
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.get("/", authMiddleware as any, async (req: any, res: any) => {
   try {
     const user = await db
@@ -81,7 +131,38 @@ profileRoutes.get("/", authMiddleware as any, async (req: any, res: any) => {
   }
 });
 
-// Update user profile
+/**
+ * @swagger
+ * /profile:
+ *   put:
+ *     summary: Update user profile
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 minLength: 1
+ *               lastName:
+ *                 type: string
+ *                 minLength: 1
+ *               phone:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.put("/", authMiddleware as any, async (req: any, res: any) => {
   try {
     const validation = updateProfileSchema.safeParse(req.body);
@@ -134,7 +215,40 @@ profileRoutes.put("/", authMiddleware as any, async (req: any, res: any) => {
   }
 });
 
-// Get all addresses
+/**
+ * @swagger
+ * /profile/addresses:
+ *   get:
+ *     summary: Get all addresses
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Addresses retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ *   post:
+ *     summary: Add new address
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Address'
+ *     responses:
+ *       201:
+ *         description: Address added successfully
+ *       400:
+ *         description: Validation error or max addresses reached
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.get(
   "/addresses",
   authMiddleware as any,
@@ -165,7 +279,21 @@ profileRoutes.get(
   }
 );
 
-// Get default address
+/**
+ * @swagger
+ * /profile/addresses/default:
+ *   get:
+ *     summary: Get default address
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Default address retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.get(
   "/addresses/default",
   authMiddleware as any,
@@ -201,7 +329,38 @@ profileRoutes.get(
   }
 );
 
-// Add new address
+/**
+ * @swagger
+ * /profile/addresses:
+ *   post:
+ *     summary: Add a new address
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Address'
+ *     responses:
+ *       201:
+ *         description: Address added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Address'
+ *       400:
+ *         description: Validation error or maximum addresses reached
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.post(
   "/addresses",
   authMiddleware as any,
@@ -285,7 +444,47 @@ profileRoutes.post(
   }
 );
 
-// Update address
+/**
+ * @swagger
+ * /profile/addresses/{addressId}:
+ *   put:
+ *     summary: Update an existing address
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: addressId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the address to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Address'
+ *     responses:
+ *       200:
+ *         description: Address updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Address'
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Address not found
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.put(
   "/addresses/:addressId",
   authMiddleware as any,
@@ -375,7 +574,37 @@ profileRoutes.put(
   }
 );
 
-// Delete address
+/**
+ * @swagger
+ * /profile/addresses/{addressId}:
+ *   delete:
+ *     summary: Delete an address
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: addressId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the address to delete
+ *     responses:
+ *       200:
+ *         description: Address deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Address not found
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.delete(
   "/addresses/:addressId",
   authMiddleware as any,
@@ -431,7 +660,32 @@ profileRoutes.delete(
   }
 );
 
-// Get all payment methods
+/**
+ * @swagger
+ * /profile/payment-methods:
+ *   get:
+ *     summary: Get all payment methods
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payment methods retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PaymentMethod'
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.get("/payment-methods", authMiddleware as any, async (req: any, res: any) => {
   try {
     const methods = await db
@@ -458,7 +712,38 @@ profileRoutes.get("/payment-methods", authMiddleware as any, async (req: any, re
   }
 });
 
-// Add new payment method
+/**
+ * @swagger
+ * /profile/payment-methods:
+ *   post:
+ *     summary: Add a new payment method
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PaymentMethod'
+ *     responses:
+ *       201:
+ *         description: Payment method added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/PaymentMethod'
+ *       400:
+ *         description: Validation error or maximum payment methods reached
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.post("/payment-methods", authMiddleware as any, async (req: any, res: any) => {
   try {
     // Check payment method limit
@@ -536,7 +821,37 @@ profileRoutes.post("/payment-methods", authMiddleware as any, async (req: any, r
   }
 });
 
-// Delete payment method
+/**
+ * @swagger
+ * /profile/payment-methods/{paymentId}:
+ *   delete:
+ *     summary: Delete a payment method
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the payment method to delete
+ *     responses:
+ *       200:
+ *         description: Payment method deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Payment method not found
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.delete("/payment-methods/:paymentId", authMiddleware as any, async (req: any, res: any) => {
   try {
     const paymentId = Number(req.params.paymentId);
@@ -613,7 +928,32 @@ profileRoutes.delete("/payment-methods/:paymentId", authMiddleware as any, async
   }
 });
 
-// Get default payment method
+/**
+ * @swagger
+ * /profile/payment-methods/default:
+ *   get:
+ *     summary: Get default payment method
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Default payment method retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   oneOf:
+ *                     - $ref: '#/components/schemas/PaymentMethod'
+ *                     - type: null
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 profileRoutes.get(
   "/payment-methods/default",
   authMiddleware as any,
