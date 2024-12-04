@@ -1,13 +1,15 @@
 import { Router } from "express";
 import { db } from "../db";
 import { users, userAddresses } from "../db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, not } from "drizzle-orm";
 import { AuthRequest, authMiddleware } from "../middleware/auth";
 import { z } from "zod";
 import { generator } from "../libs/id_generator";
+import { paymentMethods } from "../db/schema";
 
 const profileRoutes = Router();
 const MAX_ADDRESSES_PER_USER = 3;
+const MAX_PAYMENT_METHODS_PER_USER = 3;
 
 // Validation schemas
 const updateProfileSchema = z.object({
@@ -22,6 +24,14 @@ const addressSchema = z.object({
   state: z.string().min(1),
   postalCode: z.string().min(1),
   country: z.string().min(1),
+  isDefault: z.boolean().optional(),
+});
+
+const paymentMethodSchema = z.object({
+  cardType: z.string().min(1),
+  lastFour: z.string().regex(/^\d{16}$/), // 16-digit card number
+  holderName: z.string().min(1),
+  expiryDate: z.string().regex(/^\d{2}\/\d{2}$/), // MM/YY format
   isDefault: z.boolean().optional(),
 });
 
@@ -420,5 +430,187 @@ profileRoutes.delete(
     }
   }
 );
+
+// Get all payment methods
+profileRoutes.get("/payment-methods", authMiddleware as any, async (req: any, res: any) => {
+  try {
+    const methods = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.userId, req.user.userId))
+      .execute();
+
+    res.json({
+      message: "Payment methods retrieved successfully",
+      data: methods,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        issues: [
+          {
+            code: "internal_server_error",
+            message: (error as Error).message ?? "Internal server error",
+          },
+        ],
+      },
+    });
+  }
+});
+
+// Add new payment method
+profileRoutes.post("/payment-methods", authMiddleware as any, async (req: any, res: any) => {
+  try {
+    // Check payment method limit
+    const existingMethods = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.userId, req.user.userId))
+      .execute();
+
+    if (existingMethods.length >= MAX_PAYMENT_METHODS_PER_USER) {
+      return res.status(400).json({
+        error: {
+          issues: [
+            {
+              code: "max_payment_methods_reached",
+              message: `You can only have up to ${MAX_PAYMENT_METHODS_PER_USER} payment methods`,
+            },
+          ],
+        },
+      });
+    }
+
+    const validation = paymentMethodSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: {
+          issues: validation.error.issues.map((issue) => ({
+            code: "validation_error",
+            message: issue.message,
+          })),
+        },
+      });
+    }
+
+    const { cardType, lastFour, holderName, expiryDate, isDefault } = validation.data;
+
+    // If this is the first payment method or isDefault is true, handle default logic
+    if (isDefault || existingMethods.length === 0) {
+      await db
+        .update(paymentMethods)
+        .set({ isDefault: false })
+        .where(eq(paymentMethods.userId, req.user.userId))
+        .execute();
+    }
+
+    const newPaymentMethod = await db
+      .insert(paymentMethods)
+      .values({
+        paymentId: Number(generator.nextId()),
+        userId: req.user.userId,
+        cardType,
+        lastFour,
+        holderName,
+        expiryDate,
+        isDefault: isDefault ?? existingMethods.length === 0,
+      })
+      .returning()
+      .execute();
+
+    res.status(201).json({
+      message: "Payment method added successfully",
+      data: newPaymentMethod[0],
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        issues: [
+          {
+            code: "internal_server_error",
+            message: (error as Error).message ?? "Internal server error",
+          },
+        ],
+      },
+    });
+  }
+});
+
+// Delete payment method
+profileRoutes.delete("/payment-methods/:paymentId", authMiddleware as any, async (req: any, res: any) => {
+  try {
+    const paymentId = Number(req.params.paymentId);
+
+    // Check if payment method belongs to user
+    const method = await db
+      .select()
+      .from(paymentMethods)
+      .where(
+        and(
+          eq(paymentMethods.paymentId, paymentId),
+          eq(paymentMethods.userId, req.user.userId)
+        )
+      )
+      .execute();
+
+    if (method.length === 0) {
+      return res.status(404).json({
+        error: {
+          issues: [
+            {
+              code: "not_found",
+              message: "Payment method not found",
+            },
+          ],
+        },
+      });
+    }
+
+    // If we're deleting the default payment method, set another one as default
+    if (method[0].isDefault) {
+      // Get other payment methods
+      const otherMethods = await db
+        .select()
+        .from(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.userId, req.user.userId),
+            not(eq(paymentMethods.paymentId, paymentId))
+          )
+        )
+        .execute();
+
+      // If there are other payment methods, set the first one as default
+      if (otherMethods.length > 0) {
+        await db
+          .update(paymentMethods)
+          .set({ isDefault: true })
+          .where(eq(paymentMethods.paymentId, otherMethods[0].paymentId))
+          .execute();
+      }
+    }
+
+    // Delete the payment method
+    await db
+      .delete(paymentMethods)
+      .where(eq(paymentMethods.paymentId, paymentId))
+      .execute();
+
+    res.json({
+      message: "Payment method deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        issues: [
+          {
+            code: "internal_server_error",
+            message: (error as Error).message ?? "Internal server error",
+          },
+        ],
+      },
+    });
+  }
+});
 
 export default profileRoutes;
