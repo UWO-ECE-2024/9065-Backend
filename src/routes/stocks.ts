@@ -492,7 +492,6 @@ stocksRoutes.get("/orders/list", async (req: any, res: any) => {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         subtotal: item.subtotal,
-        status: item.status,
         productId: item.product.productId,
         productName: item.product.name,
         product: {
