@@ -28,7 +28,40 @@ const refreshTokenSchema = z.object({
     refreshToken: z.string(),
 });
 
-// Register admin
+/**
+ * @swagger
+ * /admin/register:
+ *   post:
+ *     summary: Register a new admin
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               username:
+ *                 type: string
+ *                 minLength: 1
+ *               inviteSecret:
+ *                 type: string
+ *                 minLength: 1
+ *     responses:
+ *       201:
+ *         description: Admin registered successfully
+ *       400:
+ *         description: Validation error or admin already exists
+ *       403:
+ *         description: Invalid invite secret
+ *       500:
+ *         description: Internal server error
+ */
 adminAuthRoutes.post("/register", async (req: any, res: any) => {
     try {
         const validation = registerSchema.safeParse(req.body);
@@ -121,7 +154,31 @@ adminAuthRoutes.post("/register", async (req: any, res: any) => {
     }
 });
 
-// Login admin
+/**
+ * @swagger
+ * /admin/login:
+ *   post:
+ *     summary: Login an admin
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
+ */
 adminAuthRoutes.post("/login", async (req: any, res: any) => {
     try {
         const validation = loginSchema.safeParse(req.body);
@@ -211,7 +268,28 @@ adminAuthRoutes.post("/login", async (req: any, res: any) => {
     }
 });
 
-// Refresh token
+/**
+ * @swagger
+ * /admin/refresh:
+ *   post:
+ *     summary: Refresh authentication tokens
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Tokens refreshed successfully
+ *       401:
+ *         description: Invalid refresh token
+ *       500:
+ *         description: Internal server error
+ */
 adminAuthRoutes.post("/refresh", async (req: any, res: any) => {
     try {
         const validation = refreshTokenSchema.safeParse(req.body);
@@ -277,7 +355,21 @@ adminAuthRoutes.post("/refresh", async (req: any, res: any) => {
     }
 });
 
-// Logout admin
+/**
+ * @swagger
+ * /admin/logout:
+ *   post:
+ *     summary: Logout an admin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 adminAuthRoutes.post("/logout", adminAuthMiddleware as any, async (req: any, res: any) => {
     try {
         await db
@@ -303,7 +395,21 @@ adminAuthRoutes.post("/logout", adminAuthMiddleware as any, async (req: any, res
     }
 });
 
-// Get current admin (for testing)
+/**
+ * @swagger
+ * /admin/me:
+ *   get:
+ *     summary: Get current admin details
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Protected route accessed successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 adminAuthRoutes.get("/me", adminAuthMiddleware as any, async (req: any, res: any) => {
     res.json({
         message: "Protected route accessed successfully",
