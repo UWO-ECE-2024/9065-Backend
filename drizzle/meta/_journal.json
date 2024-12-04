@@ -57,6 +57,13 @@
       "when": 1732998828292,
       "tag": "0007_quiet_forgotten_one",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1733291809195,
+      "tag": "0008_dear_nova",
+      "breakpoints": true
     }
   ]
 }
