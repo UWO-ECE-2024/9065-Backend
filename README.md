@@ -19,6 +19,12 @@ DATABASE_USER=
 DATABASE_PASSWORD=
 SERVER_PORT=
 CACHE_URL=
+EMAIL_KEY=your_resend_api_key
+JWT_SECRET=your-256-bit-jwt-secret
+JWT_REFRESH_SECRET=your-256-bit-jwt-refresh-secret
+JWT_EXPIRES_IN=7h
+JWT_REFRESH_EXPIRES_IN=7d
+ADMIN_INVITE_SECRET=your-256-bit-admin-invite-secret
 ```
 
 2. Define database schema in `/src/db/schema.ts` file

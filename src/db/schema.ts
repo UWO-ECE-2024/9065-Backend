@@ -12,6 +12,8 @@ import {
   integer,
   uuid,
 } from "drizzle-orm/pg-core";
+import { relations } from 'drizzle-orm';
+import { InferModel } from 'drizzle-orm';
 
 // Helper for timestamps
 const createTimestamps = {
@@ -29,6 +31,17 @@ export const users = pgTable("users", {
   phone: varchar("phone", { length: 20 }),
   isActive: boolean("is_active").default(true),
   isVerified: boolean("is_verified").default(false),
+  refreshToken: text("refresh_token"),
+  ...createTimestamps,
+});
+
+// Admin users table
+export const admins = pgTable("admins", {
+  adminId: bigint("admin_id", { mode: "number" }).primaryKey().notNull(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  username: varchar("username", { length: 100 }).notNull(),
+  isActive: boolean("is_active").default(true),
   refreshToken: text("refresh_token"),
   ...createTimestamps,
 });
@@ -173,19 +186,34 @@ export const cartItems = pgTable("cart_items", {
 export const orders = pgTable("orders", {
   orderId: bigint("order_id", { mode: "number" }).primaryKey().notNull(),
   userId: bigint("user_id", { mode: "number" }).notNull(),
-  // .references(() => users.userId),
-  shippingAddressId: bigint("shipping_address_id", {
-    mode: "number",
-  }).notNull(),
-  // .references(() => userAddresses.addressId),
+  shippingAddressId: bigint("shipping_address_id", { mode: "number" }).notNull(),
   billingAddressId: bigint("billing_address_id", { mode: "number" }).notNull(),
-  // .references(() => userAddresses.addressId),
   paymentMethodId: bigint("payment_method_id", { mode: "number" }).notNull(),
-  // .references(() => paymentMethods.paymentId),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 50 }).notNull().default("pending"),
   ...createTimestamps,
 });
+
+// 定义订单关系
+export const ordersRelations = relations(orders, ({ many, one }) => ({
+  items: many(orderItems),
+  user: one(users, {
+    fields: [orders.userId],
+    references: [users.userId],
+  }),
+  shippingAddress: one(userAddresses, {
+    fields: [orders.shippingAddressId],
+    references: [userAddresses.addressId],
+  }),
+  billingAddress: one(userAddresses, {
+    fields: [orders.billingAddressId],
+    references: [userAddresses.addressId],
+  }),
+  paymentMethod: one(paymentMethods, {
+    fields: [orders.paymentMethodId],
+    references: [paymentMethods.paymentId],
+  }),
+}));
 
 // Order items table
 export const orderItems = pgTable("order_items", {
@@ -201,7 +229,21 @@ export const orderItems = pgTable("order_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("pending"),
+  ...createTimestamps,
 });
+
+// 定义订单项关系
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.orderId],
+  }),
+  product: one(products, {
+    fields: [orderItems.productId],
+    references: [products.productId],
+  }),
+}));
 
 // Order status history table
 export const orderStatusHistory = pgTable("order_status_history", {
@@ -227,3 +269,10 @@ export const indexes = sql`
 `;
 
 // "remove" CREATE INDEX idx_product_sku ON products(sku);
+
+export type User = InferModel<typeof users>;
+export type Order = InferModel<typeof orders>;
+export type OrderItem = InferModel<typeof orderItems>;
+export type Product = InferModel<typeof products>;
+export type UserAddress = InferModel<typeof userAddresses>;
+export type PaymentMethod = InferModel<typeof paymentMethods>;
